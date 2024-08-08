@@ -1,3 +1,4 @@
+
 import datetime
 import pathlib
 import random
@@ -207,7 +208,7 @@ class Game(AbstractGame):
 
 
 class PatientGame:
-    def __init__(self, directory_path=r"D:\Old Files\Odyssey Therapiea\Muzero files\patient", seed=None):
+    def __init__(self, directory_path=r"C:\ODYSSEY\Old Files\Updated muzero files\FakeRecords", seed=None):
         super().__init__()
         self.directory_path = directory_path
         self.patient_records = []
@@ -249,11 +250,10 @@ class PatientGame:
         ]
 
         loinc_codes = {
-            "heart_rate": "8867-4",
+            "body_temperature": "8310-5",
             "hemoglobin": "718-7",
+            "heart_rate": "8867-4",
             "respiratory_rate": "9279-1",
-            "diastolic_blood_pressure": "8462-4",
-            "systolic_blood_pressure": "8480-6"
         }
 
         observation_values = np.zeros(4)  # Create an array of zeros for 4 observations
@@ -262,9 +262,19 @@ class PatientGame:
         for observation in observations:
             code_info = next((coding for coding in observation.get('code', {}).get('coding', []) if
                               coding.get('code') in loinc_codes.values()), None)
+            #print(f"Observation: {observation}")  # Debug print to show full observation
             if code_info:
-                index = list(loinc_codes.values()).index(code_info['code'])
-                observation_values[index] = observation.get('valueQuantity', {}).get('value', 0)
+                code = code_info['code']
+                value = observation.get('valueQuantity', {}).get('value', 0)
+                #print(f"Found observation: {code} with value: {value}")  # Debug print
+                if code == loinc_codes["body_temperature"]:
+                    observation_values[0] = value
+                elif code == loinc_codes["hemoglobin"]:
+                    observation_values[1] = value
+                elif code == loinc_codes["heart_rate"]:
+                    observation_values[2] = value
+                elif code == loinc_codes["respiratory_rate"]:
+                    observation_values[3] = value
 
         # Reshape to (1,1,4) before returning
         reshaped_observations = np.reshape(observation_values, (1, 1, 4))
@@ -286,21 +296,20 @@ class PatientGame:
         """ Evaluate the current record based on the action taken. """
 
         normal_ranges = {
-            "heart_rate": (60, 100),
-            "hemoglobin": (13, 17),
-            "respiratory_rate": (12, 16),
-            "diastolic_blood_pressure": (60, 80),
-            "systolic_blood_pressure": (90, 120)
+            "body_temperature": (31.0, 40.0),  # Normal body temperature in Celsius
+            "hemoglobin": (6, 19),           # Normal hemoglobin levels in g/dL
+            "heart_rate": (21, 149),
+            "respiratory_rate": (5, 34)
         }
         self.issues = []
         observation_values = self.current_record[0, 0]
 
         # Check each observation against normal ranges
-        systolic_blood_pressure, diastolic_blood_pressure, heart_rate, respiratory_rate = observation_values
-        if not (90 <= systolic_blood_pressure <= 120):
-            self.issues.append(f"Systolic blood pressure out of range: {systolic_blood_pressure}")
-        if not (60 <= diastolic_blood_pressure <= 80):
-            self.issues.append(f"Diastolic blood pressure out of range: {diastolic_blood_pressure}")
+        body_temperature, hemoglobin, heart_rate, respiratory_rate = observation_values
+        if not (36.1 <= body_temperature <= 37.2):
+            self.issues.append(f"Body temperature out of range: {body_temperature}")
+        if not (13 <= hemoglobin <= 17):
+            self.issues.append(f"Hemoglobin out of range: {hemoglobin}")
         if not (60 <= heart_rate <= 100):
             self.issues.append(f"Heart rate out of range: {heart_rate}")
         if not (12 <= respiratory_rate <= 16):
@@ -320,11 +329,12 @@ class PatientGame:
 
     def render(self):
         """ Display the current record's observations. """
-        labels = ["Systolic Blood Pressure", "Diastolic Blood Pressure", "Heart Rate", "Respiratory Rate"]
+        labels = ["Body Temperature", "Hemoglobin", "Heart Rate", "Respiratory Rate"]
+        units = ["°C", "g/dL", "bpm", "/min"]
         if self.current_record is not None:
             print("\nCurrent record observations:")
             for i, label in enumerate(labels):
-                print(f"{label}: {self.current_record[0, 0, i]}")
+                print(f"{label}: {self.current_record[0, 0, i]} {units[i]}")
         else:
             print("\nNo current record to display.")
 
@@ -343,3 +353,5 @@ class PatientGame:
     def action_to_string(self, action_number):
         """ Convert action number to a descriptive string. """
         return "good" if action_number == 1 else "bad"
+
+
